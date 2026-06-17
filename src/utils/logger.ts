@@ -1,10 +1,10 @@
 import winston from "winston";
 import { env } from "../config/env";
 
-const isCloudHost = Boolean(process.env.RAILWAY_ENVIRONMENT || process.env.RENDER);
+const isProduction = env.NODE_ENV === "production";
 const transports: winston.transport[] = [];
 
-if (isCloudHost || env.NODE_ENV === "production") {
+if (isProduction) {
   transports.push(
     new winston.transports.Console({
       format: winston.format.combine(

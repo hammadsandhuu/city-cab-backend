@@ -20,8 +20,6 @@ build/
 .env.development
 .env.*.local
 
-# Deploy config — commit render.yaml (not ignored)
-
 # IDE
 .vscode/
 .idea/

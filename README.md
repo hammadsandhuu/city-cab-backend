@@ -63,7 +63,7 @@ pnpm install
 
 ### 2. Environment variables
 
-Create `backend/.env` for local development. Use `backend/.env.production` as a reference for Render, or set the same keys in **Render Dashboard → Environment**.
+Create `backend/.env` for local development. Use `backend/.env.production` as a reference for Hostinger, or set the same keys in **hPanel → Node.js app → Environment**.
 
 **Never commit `.env` or `.env.production`** — both are gitignored.
 
@@ -110,7 +110,7 @@ REQUIRE_EMAIL_VERIFICATION=true
 MAX_SESSIONS_PER_USER=10
 BCRYPT_ROUNDS=12
 
-# Redis / Upstash (optional — REDIS_ENABLED=false to start on Render)
+# Redis / Upstash (optional — REDIS_ENABLED=false by default)
 REDIS_URL=
 REDIS_ENABLED=false
 REDIS_CONNECT_TIMEOUT_MS=10000
@@ -126,10 +126,10 @@ SOCKET_PATH=/socket.io
 | `FRONTEND_URL` | Public website URL (CORS + user reset/verify email links) |
 | `ADMIN_FRONTEND_URL` | Admin dashboard URL (CORS + admin reset email links) |
 | `REDIS_ENABLED` | `false` by default — set `true` with Upstash `REDIS_URL` when scaling |
-| `REDIS_URL` | Upstash Redis URL on Render (`rediss://default:...@....upstash.io:6379`) |
+| `REDIS_URL` | Upstash Redis URL (`rediss://default:...@....upstash.io:6379`) |
 | `REQUIRE_EMAIL_VERIFICATION` | When `true`, users must verify email before login |
 | `MAX_SESSIONS_PER_USER` | Oldest sessions dropped when limit exceeded |
-| `TRUST_PROXY_HOPS` | Set to `1` on Render (app runs behind Render reverse proxy) |
+| `TRUST_PROXY_HOPS` | Set to `1` on Hostinger (app runs behind reverse proxy) |
 
 In **production**, `JWT_SECRET` and `JWT_REFRESH_SECRET` must each be at least 32 characters and must differ.
 
@@ -149,66 +149,57 @@ API base: `http://localhost:5000`
 - Health: `GET /health/live` (process alive), `GET /health/ready` and `GET /health` (dependencies)
 - Root: `GET /`
 
-## Render deployment
+## Hostinger deployment
 
-This backend runs on **Render** as a persistent Node web service (API + Socket.IO).
+This backend deploys on **Hostinger Node.js Web App** hosting (Business or Cloud plan). Requires **Node.js 20+**, **Express** preset, and GitHub or ZIP upload.
 
-### Option A — Blueprint (recommended)
+### 1. hPanel setup
 
-1. Push the repo to GitHub.
-2. [Render Dashboard](https://dashboard.render.com) → **New** → **Blueprint**.
-3. Connect the repo — Render reads `render.yaml` at repo root (`rootDir: backend`), or set Root directory to `backend` and use `backend/render.yaml`.
-4. Add **secret** environment variables in the dashboard (see list below).
-5. Deploy.
-
-### Option B — Manual web service
+1. **Websites** → **Add Website** → **Node.js Web App**
+2. Connect GitHub repo or upload project ZIP
+3. Framework: **Express.js** · Node: **20.x**
 
 | Setting | Value |
 | ------- | ----- |
-| **Root directory** | `backend` |
-| **Runtime** | Node |
 | **Build command** | `corepack enable && pnpm install --frozen-lockfile && pnpm build` |
 | **Start command** | `pnpm start` |
-| **Health check path** | `/health/live` |
 
-Render sets `PORT` automatically. Use `TRUST_PROXY_HOPS=1`.
+Hostinger sets `PORT` automatically. Use `TRUST_PROXY_HOPS=1`.
 
-### Required environment variables (Render Dashboard)
+### 2. Domain
+
+Point a subdomain to the API, e.g. `api.airport-transfers.be`.
+
+### 3. Environment variables (hPanel)
+
+Copy all keys from `backend/.env.production` into **Environment**:
 
 | Variable | Example / notes |
 | -------- | ---------------- |
 | `MONGODB_URI` | MongoDB Atlas connection string |
 | `JWT_SECRET` | Min 32 chars in production |
 | `JWT_REFRESH_SECRET` | Different from JWT_SECRET, min 32 chars |
-| `FRONTEND_URL` | `https://your-website.onrender.com` |
-| `ADMIN_FRONTEND_URL` | `https://your-dashboard.onrender.com` |
-| `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_USER`, `EMAIL_PASS`, `EMAIL_FROM` | SMTP |
+| `FRONTEND_URL` | `https://airport-transfers.be` |
+| `ADMIN_FRONTEND_URL` | `https://admin.airport-transfers.be` |
+| `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_USER`, `EMAIL_PASS`, `EMAIL_FROM` | Hostinger SMTP |
 | `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` | Uploads |
+| `REDIS_URL` | Upstash Redis URL (`rediss://...`) — optional |
+| `REDIS_ENABLED` | `true` if using Upstash, else `false` |
 
-### Optional
+### 4. MongoDB Atlas
 
-| Variable | When |
-| -------- | ---- |
-| `REDIS_URL` | Upstash Redis URL on Render (`rediss://...`) |
-| `REDIS_ENABLED=true` | Shared rate limits + multi-instance Socket.IO |
-| `SOCKET_ENABLED=false` | REST-only API (no WebSockets) |
+Add Hostinger server IP to Atlas **Network Access** (or `0.0.0.0/0` for testing).
 
-### Free tier notes
+### 5. After deploy
 
-- Render **free** web services **sleep** after ~15 minutes idle (cold start on next request).
-- Socket.IO may disconnect when the service sleeps — use a **Starter** plan ($7/mo) for always-on.
-- Redis is **optional** — `REDIS_ENABLED=false` in `render.yaml` is enough to launch. Add [Upstash](https://upstash.com) later when scaling.
-
-### After deploy
-
-- API: `https://city-airport-taxis-api.onrender.com`
+- API: `https://api.airport-transfers.be`
 - Liveness: `GET /health/live`
 - Readiness: `GET /health/ready`
-- Seed admin locally against production DB, or run seed once via Render shell with `SEED_ADMIN_PASSWORD`.
+- Seed admin locally: `SEED_ADMIN_PASSWORD=... pnpm seed:admin`
 
-### Frontends
+### 6. Frontends
 
-Deploy **website** and **dashboard** as separate Render Web Services (Next.js) or use **Vercel** for frontends and point `FRONTEND_URL` / `ADMIN_FRONTEND_URL` to those URLs.
+Deploy **website** and **dashboard** as separate Hostinger Node.js apps (Next.js). Set `NEXT_PUBLIC_BACKEND_URL=https://api.airport-transfers.be/api` on each.
 
 ## API overview
 
