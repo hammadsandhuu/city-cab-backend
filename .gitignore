@@ -1,0 +1,53 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+.pnpm-store
+.pnpm/
+.pnpm-debug.log*
+
+# Legacy lockfiles (commit pnpm-lock.yaml)
+package-lock.json
+yarn.lock
+
+# Build output
+dist/
+build/
+
+# Environment — never commit secrets (.env / .env.production)
+.env
+.env.production
+.env.local
+.env.development
+.env.*.local
+
+# Deploy config — commit render.yaml (not ignored)
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Testing
+coverage/
+.nyc_output/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# TypeScript
+*.tsbuildinfo

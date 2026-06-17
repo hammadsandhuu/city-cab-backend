@@ -1,0 +1,27 @@
+import { RedisStore, type RedisReply } from "rate-limit-redis";
+import type { Store } from "express-rate-limit";
+import { RedisClient } from "./redis";
+import { env } from "./env";
+
+let store: Store | undefined;
+
+export const getRateLimitStore = (): Store | undefined => {
+  if (!env.REDIS_ENABLED) {
+    return undefined;
+  }
+
+  if (!store) {
+    store = new RedisStore({
+      sendCommand: async (...args: string[]) => {
+        const client = await RedisClient.connect();
+        if (!client) {
+          throw new Error("Redis is not available for rate limiting");
+        }
+        return client.sendCommand(args) as Promise<RedisReply>;
+      },
+      prefix: "rl:",
+    });
+  }
+
+  return store;
+};
