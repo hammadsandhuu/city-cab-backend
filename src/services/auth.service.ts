@@ -23,7 +23,12 @@ class AuthService {
     const admin = await this.findAdminById(adminId);
     if (!admin) throw new AppError("User no longer exists", 401);
 
-    return { admin: admin.toObject() };
+    const adminObj = admin.toObject();
+
+    return {
+      ...adminObj,
+      name: `${adminObj.firstName} ${adminObj.lastName}`.trim(),
+    };
   }
 
   async updateProfile(

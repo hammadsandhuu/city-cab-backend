@@ -94,7 +94,7 @@ class AuthController {
       getAuthAuditContext(req)
     );
 
-    return sendSuccess(res, { admin: admin.toObject() }, { message: "Profile updated successfully" });
+    return sendSuccess(res, admin.toObject(), { message: "Profile updated successfully" });
   });
 
   getActivities = asyncHandler(async (req: Request, res: Response) => {

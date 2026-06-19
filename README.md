@@ -63,7 +63,7 @@ pnpm install
 
 ### 2. Environment variables
 
-Create `backend/.env` for local development. Use `backend/.env.production` as a reference for Hostinger, or set the same keys in **hPanel → Node.js app → Environment**.
+Create `backend/.env` for local development. Use `backend/.env.production` on the VPS (copy to server, never commit).
 
 **Never commit `.env` or `.env.production`** — both are gitignored.
 
@@ -129,7 +129,7 @@ SOCKET_PATH=/socket.io
 | `REDIS_URL` | Upstash Redis URL (`rediss://default:...@....upstash.io:6379`) |
 | `REQUIRE_EMAIL_VERIFICATION` | When `true`, users must verify email before login |
 | `MAX_SESSIONS_PER_USER` | Oldest sessions dropped when limit exceeded |
-| `TRUST_PROXY_HOPS` | Set to `1` on Hostinger (app runs behind reverse proxy) |
+| `TRUST_PROXY_HOPS` | Set to `1` behind Nginx reverse proxy (VPS) |
 
 In **production**, `JWT_SECRET` and `JWT_REFRESH_SECRET` must each be at least 32 characters and must differ.
 
@@ -149,57 +149,121 @@ API base: `http://localhost:5000`
 - Health: `GET /health/live` (process alive), `GET /health/ready` and `GET /health` (dependencies)
 - Root: `GET /`
 
-## Hostinger deployment
+## Hostinger VPS deployment
 
-This backend deploys on **Hostinger Node.js Web App** hosting (Business or Cloud plan). Requires **Node.js 20+**, **Express** preset, and GitHub or ZIP upload.
+Deploy on a **Hostinger VPS** (Ubuntu) with **PM2** + **Nginx** + **SSL**. Best for Express + Socket.IO (always-on, full control).
 
-### 1. hPanel setup
+**Stack on VPS:** Node 20 · pnpm · PM2 · Nginx · Certbot · MongoDB Atlas · Upstash Redis (optional)
 
-1. **Websites** → **Add Website** → **Node.js Web App**
-2. Connect GitHub repo or upload project ZIP
-3. Framework: **Express.js** · Node: **20.x**
+### 1. VPS setup (one-time)
 
-| Setting | Value |
-| ------- | ----- |
-| **Build command** | `corepack enable && pnpm install --frozen-lockfile && pnpm build` |
-| **Start command** | `pnpm start` |
+1. Hostinger → **VPS** → create instance (Ubuntu 24.04, EU region)
+2. Note the **server IP** — add it to MongoDB Atlas **Network Access**
+3. SSH in: `ssh root@YOUR_VPS_IP`
 
-Hostinger sets `PORT` automatically. Use `TRUST_PROXY_HOPS=1`.
+```bash
+# System updates
+apt update && apt upgrade -y
 
-### 2. Domain
+# Node.js 20 + pnpm
+curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+apt install -y nodejs nginx certbot python3-certbot-nginx git
+corepack enable
 
-Point a subdomain to the API, e.g. `api.airport-transfers.be`.
+# PM2 (process manager — keeps API running 24/7)
+npm install -g pm2
 
-### 3. Environment variables (hPanel)
+# Firewall
+ufw allow OpenSSH
+ufw allow 'Nginx Full'
+ufw enable
+```
 
-Copy all keys from `backend/.env.production` into **Environment**:
+### 2. Deploy the API
 
-| Variable | Example / notes |
-| -------- | ---------------- |
-| `MONGODB_URI` | MongoDB Atlas connection string |
-| `JWT_SECRET` | Min 32 chars in production |
-| `JWT_REFRESH_SECRET` | Different from JWT_SECRET, min 32 chars |
+```bash
+# App directory (adjust path if needed)
+mkdir -p /var/www/city-airport-taxis-api
+cd /var/www/city-airport-taxis-api
+
+# Clone your repo (backend-only repo)
+git clone https://github.com/hammadsandhuu/city-cab-backend.git .
+
+# Production env — copy from your local .env.production (never commit)
+nano .env.production
+
+# Install, build, start with PM2
+pnpm install --frozen-lockfile
+pnpm build
+pm2 start ecosystem.config.cjs
+pm2 save
+pm2 startup   # run the command it prints, then: pm2 save
+```
+
+PM2 loads `NODE_ENV=production` → app reads `.env.production` automatically.
+
+| PM2 command | Purpose |
+| ----------- | ------- |
+| `pm2 status` | Check if API is running |
+| `pm2 logs city-airport-taxis-api` | View logs |
+| `pm2 restart city-airport-taxis-api` | Restart after deploy |
+| `git pull && pnpm install --frozen-lockfile && pnpm build && pm2 restart city-airport-taxis-api` | Update deploy |
+
+### 3. Nginx reverse proxy
+
+```bash
+sudo cp deploy/nginx-api.conf.example /etc/nginx/sites-available/api.airport-transfers.be
+sudo ln -s /etc/nginx/sites-available/api.airport-transfers.be /etc/nginx/sites-enabled/
+sudo nginx -t && sudo systemctl reload nginx
+```
+
+Point DNS: `api.airport-transfers.be` → VPS IP (A record).
+
+### 4. SSL (HTTPS)
+
+```bash
+sudo certbot --nginx -d api.airport-transfers.be
+```
+
+### 5. Environment variables
+
+All keys from `backend/.env.production` on the server as `.env.production`:
+
+| Variable | Notes |
+| -------- | ----- |
+| `PORT` | `5000` (Nginx proxies to this) |
+| `TRUST_PROXY_HOPS` | `1` |
+| `MONGODB_URI` | MongoDB Atlas |
+| `JWT_SECRET` / `JWT_REFRESH_SECRET` | Min 32 chars each |
 | `FRONTEND_URL` | `https://airport-transfers.be` |
 | `ADMIN_FRONTEND_URL` | `https://admin.airport-transfers.be` |
-| `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_USER`, `EMAIL_PASS`, `EMAIL_FROM` | Hostinger SMTP |
-| `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` | Uploads |
-| `REDIS_URL` | Upstash Redis URL (`rediss://...`) — optional |
-| `REDIS_ENABLED` | `true` if using Upstash, else `false` |
+| `EMAIL_*` | Hostinger SMTP |
+| `CLOUDINARY_*` | Uploads |
+| `REDIS_URL` / `REDIS_ENABLED` | Upstash (optional) |
+| `SOCKET_ENABLED` | `true` for WebSockets |
 
-### 4. MongoDB Atlas
+### 6. Verify
 
-Add Hostinger server IP to Atlas **Network Access** (or `0.0.0.0/0` for testing).
+```bash
+curl http://127.0.0.1:5000/health/live
+curl https://api.airport-transfers.be/health/ready
+```
 
-### 5. After deploy
+Seed admin (from your machine or VPS):
 
-- API: `https://api.airport-transfers.be`
-- Liveness: `GET /health/live`
-- Readiness: `GET /health/ready`
-- Seed admin locally: `SEED_ADMIN_PASSWORD=... pnpm seed:admin`
+```bash
+SEED_ADMIN_PASSWORD=YourPassword pnpm seed:admin
+```
 
-### 6. Frontends
+### 7. Frontends (same VPS or separate)
 
-Deploy **website** and **dashboard** as separate Hostinger Node.js apps (Next.js). Set `NEXT_PUBLIC_BACKEND_URL=https://api.airport-transfers.be/api` on each.
+Run **website** and **dashboard** (Next.js) on the same VPS with PM2 + Nginx, or on Hostinger shared hosting as static export.
+
+```env
+NEXT_PUBLIC_BACKEND_URL=https://api.airport-transfers.be/api
+```
+
+Nginx examples: `airport-transfers.be` → website (port 3000), `admin.airport-transfers.be` → dashboard (port 3001).
 
 ## API overview
 
@@ -271,6 +335,7 @@ Enforced in Joi (`validators/password.schema.ts`), not duplicated in services:
 | `pnpm dev` | Start dev server with `ts-node-dev` |
 | `pnpm build` | Compile TypeScript to `dist/` |
 | `pnpm start` | Run compiled `dist/server.js` |
+| `pnpm start:pm2` | Start with PM2 (`ecosystem.config.cjs`) on VPS |
 | `pnpm type-check` | `tsc --noEmit` |
 | `pnpm lint` | ESLint on `src/` |
 | `pnpm lint:fix` | ESLint with auto-fix |
