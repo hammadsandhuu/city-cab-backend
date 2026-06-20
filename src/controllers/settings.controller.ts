@@ -5,6 +5,12 @@ import { sendSuccess } from "../utils/response";
 import { AppError } from "../errors/AppError";
 
 class SettingsController {
+  getPublicSettings = asyncHandler(async (_req: Request, res: Response) => {
+    const settings = await settingsService.getPublicSettings();
+    res.set("Cache-Control", "public, max-age=30, stale-while-revalidate=60");
+    return sendSuccess(res, settings);
+  });
+
   getSettings = asyncHandler(async (req: Request, res: Response) => {
     if (!req.admin) throw new AppError("Unauthorized", 401);
 
@@ -14,12 +20,10 @@ class SettingsController {
 
   updateSettings = asyncHandler(async (req: Request, res: Response) => {
     if (!req.admin) throw new AppError("Unauthorized", 401);
-
     const settings = await settingsService.updateSettings(
       req.body,
       req.admin._id.toString()
     );
-
     return sendSuccess(res, settings.toObject(), {
       message: "Settings updated successfully",
     });

@@ -1,6 +1,5 @@
 import { Settings } from "../models/Settings";
 import { AppError } from "../errors/AppError";
-import type { PaymentMode } from "../types/settings.types";
 
 const GLOBAL_SETTINGS_KEY = "global";
 
@@ -12,11 +11,18 @@ class SettingsService {
       settings = await Settings.create({
         key: GLOBAL_SETTINGS_KEY,
         maintenanceMode: false,
+        comingSoonMode: false,
         paymentMode: "test",
+        minBookingMinutes: 0,
+        stopFee: 0,
+        cardProcessingFee: 0,
+        airportPickup: 0,
+        trainPickup: 0,
+        meetAndGreet: 0,
+        returnMeetAndGreet: 0,
+        waitingTimePricePerMinute: 0,
+        waitingTimePricePerHour: 0,
       });
-    } else if (!settings.paymentMode) {
-      settings.paymentMode = "test";
-      await settings.save();
     }
 
     return settings;
@@ -27,23 +33,29 @@ class SettingsService {
     return settings;
   }
 
-  async updateSettings(
-    data: { maintenanceMode: boolean; paymentMode: PaymentMode },
-    adminId: string
-  ) {
+  async getPublicSettings() {
+    const settings = await this.getOrCreateSettings();
+
+    return {
+      maintenanceMode: settings.maintenanceMode,
+      comingSoonMode: settings.comingSoonMode ?? false,
+      minBookingMinutes: settings.minBookingMinutes ?? 120,
+      stopFee: settings.stopFee ?? 0,
+      cardProcessingFee: settings.cardProcessingFee ?? 0,
+      airportPickup: settings.airportPickup ?? 0,
+      trainPickup: settings.trainPickup ?? 0,
+      meetAndGreet: settings.meetAndGreet ?? 0,
+      returnMeetAndGreet: settings.returnMeetAndGreet ?? 0,
+      waitingTimePricePerMinute: settings.waitingTimePricePerMinute ?? 0,
+      waitingTimePricePerHour: settings.waitingTimePricePerHour ?? 0,
+    };
+  }
+
+  async updateSettings(data: any, adminId: string) {
     const settings = await Settings.findOneAndUpdate(
       { key: GLOBAL_SETTINGS_KEY },
-      {
-        maintenanceMode: data.maintenanceMode,
-        paymentMode: data.paymentMode,
-        updatedBy: adminId,
-      },
-      {
-        upsert: true,
-        new: true,
-        setDefaultsOnInsert: true,
-        runValidators: true,
-      }
+      { ...data, updatedBy: adminId },
+      { new: true }
     );
 
     if (!settings) {

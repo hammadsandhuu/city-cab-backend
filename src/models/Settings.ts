@@ -15,10 +15,60 @@ const settingsSchema = new Schema<ISettings>(
       type: Boolean,
       default: false,
     },
+    comingSoonMode: {
+      type: Boolean,
+      default: false,
+    },
     paymentMode: {
       type: String,
       enum: PAYMENT_MODES,
       default: "test",
+    },
+    minBookingMinutes: {
+      type: Number,
+      default: 120,
+      min: 0,
+    },
+    stopFee: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    cardProcessingFee: {
+      type: Number,
+      default: 0,
+      min: 0,
+      max: 100,
+    },
+    airportPickup: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    trainPickup: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    meetAndGreet: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    returnMeetAndGreet: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    waitingTimePricePerMinute: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    waitingTimePricePerHour: {
+      type: Number,
+      default: 0,
+      min: 0,
     },
     updatedBy: {
       type: Schema.Types.ObjectId,

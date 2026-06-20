@@ -1,0 +1,75 @@
+import { Request, Response } from "express";
+import newsletterService from "../services/newsletter.service";
+import { asyncHandler } from "../middleware/asyncHandler";
+import { sendSuccess } from "../utils/response";
+import { AppError } from "../errors/AppError";
+import { getAllQuerySchema } from "../validators/newsletter.validator";
+
+class NewsletterController {
+  subscribe = asyncHandler(async (req: Request, res: Response) => {
+    const subscriber = await newsletterService.subscribe(req.body);
+
+    return sendSuccess(res, subscriber.toObject(), {
+      message: "You have been subscribed successfully",
+    });
+  });
+
+  getAll = asyncHandler(async (req: Request, res: Response) => {
+    if (!req.admin) throw new AppError("Unauthorized", 401);
+
+    const { error, value } = getAllQuerySchema.validate(req.query, {
+      abortEarly: false,
+      stripUnknown: true,
+    });
+
+    if (error) {
+      const errorMessage = error.details
+        .map((detail) => detail.message.replace(/['"]/g, ""))
+        .join(", ");
+      throw new AppError(errorMessage, 400);
+    }
+
+    const result = await newsletterService.getNewsletters(value);
+
+    return sendSuccess(res, {
+      items: result.items.map((item) => item.toObject()),
+      meta: {
+        page: result.page,
+        limit: result.limit,
+        total: result.total,
+        totalPages: result.totalPages,
+      },
+    });
+  });
+
+  deleteOne = asyncHandler(async (req: Request, res: Response) => {
+    if (!req.admin) throw new AppError("Unauthorized", 401);
+
+    const deleted = await newsletterService.deleteNewsletter(req.params.id);
+    if (!deleted) {
+      throw new AppError("Newsletter subscriber not found", 404);
+    }
+
+    return sendSuccess(res, deleted.toObject(), {
+      message: "Subscriber removed successfully",
+    });
+  });
+
+  bulkDelete = asyncHandler(async (req: Request, res: Response) => {
+    if (!req.admin) throw new AppError("Unauthorized", 401);
+
+    const result = await newsletterService.bulkDeleteNewsletters(req.body);
+    if (result.deletedCount === 0) {
+      throw new AppError("No newsletter subscribers found to delete", 404);
+    }
+
+    return sendSuccess(res, result, {
+      message:
+        result.deletedCount === 1
+          ? "Subscriber removed successfully"
+          : `${result.deletedCount} subscribers removed successfully`,
+    });
+  });
+}
+
+export default new NewsletterController();
