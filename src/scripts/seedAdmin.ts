@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
-import { Admin } from "../models/Admin";
-import { env } from "../config/env";
-import logger from "../utils/logger";
+import { Admin } from "@/infrastructure/database/models/Admin";
+import { env } from "@/config/env";
+import logger from "@/shared/utils/logger";
 
 const getSeedConfig = () => {
   const email = process.env.SEED_ADMIN_EMAIL || env.DEFAULT_ADMIN_EMAIL;

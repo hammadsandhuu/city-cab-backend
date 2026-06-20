@@ -31,17 +31,29 @@ Node.js / Express / TypeScript API for **City Airport Taxis**. This service hand
 
 ```
 src/
-├── config/          # env, database
-├── controllers/     # HTTP handlers
-├── errors/          # AppError
-├── middleware/      # auth, CSRF, rate limits, upload, validation
-├── models/          # Mongoose schemas only (User, Admin, Session, Activity)
-├── routes/          # admin-auth, user-auth, upload
-├── services/        # auth, userAuth, sessions, email, lockout
-├── templates/       # HTML email templates (user-auth)
-├── types/           # IUser, IAdmin, auth, upload, etc.
-├── utils/           # JWT, cookies, logger, responses
-└── validators/      # Joi schemas (incl. password.schema)
+├── app.ts, server.ts
+├── config/env.ts
+├── routes/              # Public + admin route aggregators
+├── middleware/          # auth, CSRF, validation, rate limits, health auth
+├── modules/
+│   ├── auth/            # controllers, services, repositories, validators, routes
+│   ├── newsletter/
+│   ├── settings/
+│   ├── upload/
+│   └── health/
+├── infrastructure/
+│   ├── database/        # connection, models, indexes
+│   ├── redis/           # client, cache, rate-limit store
+│   ├── email/           # service + templates
+│   ├── storage/         # Cloudinary
+│   └── socket/          # server, auth, handlers, rooms, registry
+├── shared/
+│   ├── audit/           # structured audit events (+ Mongo persistence)
+│   ├── errors/          # AppError + error codes
+│   ├── observability/   # correlation IDs, metrics, request logging
+│   ├── validators/      # shared Joi schemas (ObjectId, URLs)
+│   └── utils/           # logger, responses, APIFeature
+└── scripts/seedAdmin.ts
 ```
 
 ## Prerequisites
@@ -149,11 +161,11 @@ API base: `http://localhost:5000`
 - Health: `GET /health/live` (process alive), `GET /health/ready` and `GET /health` (dependencies)
 - Root: `GET /`
 
-## Hostinger VPS deployment
+## Hostinger VPS deployment (Docker)
 
-Deploy on a **Hostinger VPS** (Ubuntu) with **PM2** + **Nginx** + **SSL**. Best for Express + Socket.IO (always-on, full control).
+Deploy on a **Hostinger VPS** (Ubuntu) with **Docker Compose** + **Nginx** + **SSL**.
 
-**Stack on VPS:** Node 20 · pnpm · PM2 · Nginx · Certbot · MongoDB Atlas · Upstash Redis (optional)
+**Stack on VPS:** Docker · Redis (container) · Nginx · Certbot · MongoDB Atlas
 
 ### 1. VPS setup (one-time)
 
@@ -162,108 +174,131 @@ Deploy on a **Hostinger VPS** (Ubuntu) with **PM2** + **Nginx** + **SSL**. Best 
 3. SSH in: `ssh root@YOUR_VPS_IP`
 
 ```bash
-# System updates
-apt update && apt upgrade -y
+# Clone repo (or copy backend folder only)
+mkdir -p /opt/city-cab/backend
+cd /opt/city-cab/backend
+git clone https://github.com/YOUR_ORG/city-cab.git /tmp/city-cab
+cp -r /tmp/city-cab/backend/* .
 
-# Node.js 20 + pnpm
-curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
-apt install -y nodejs nginx certbot python3-certbot-nginx git
-corepack enable
-
-# PM2 (process manager — keeps API running 24/7)
-npm install -g pm2
-
-# Firewall
-ufw allow OpenSSH
-ufw allow 'Nginx Full'
-ufw enable
+# One-time Docker + Nginx setup
+sudo bash deploy/docker-vps-setup.sh
 ```
 
-### 2. Deploy the API
+### 2. Configure production env
 
 ```bash
-# App directory (adjust path if needed)
-mkdir -p /var/www/city-airport-taxis-api
-cd /var/www/city-airport-taxis-api
-
-# Clone your repo (backend-only repo)
-git clone https://github.com/hammadsandhuu/city-cab-backend.git .
-
-# Production env — copy from your local .env.production (never commit)
-nano .env.production
-
-# Install, build, start with PM2
-pnpm install --frozen-lockfile
-pnpm build
-pm2 start ecosystem.config.cjs
-pm2 save
-pm2 startup   # run the command it prints, then: pm2 save
+cp .env.production.example .env.production
+nano .env.production   # fill JWT, MongoDB, email, Cloudinary, HEALTH_CHECK_TOKEN, URLs
 ```
 
-PM2 loads `NODE_ENV=production` → app reads `.env.production` automatically.
+| Variable | Notes |
+| -------- | ----- |
+| `PORT` | `5000` (bound to localhost; Nginx proxies) |
+| `TRUST_PROXY_HOPS` | `1` |
+| `MONGODB_URI` | MongoDB Atlas connection string |
+| `JWT_SECRET` / `JWT_REFRESH_SECRET` | Min 32 chars each, must differ |
+| `FRONTEND_URL` | e.g. `https://airport-transfers.be` |
+| `ADMIN_FRONTEND_URL` | e.g. `https://admin.airport-transfers.be` |
+| `HEALTH_CHECK_TOKEN` | Random secret for `/health` probes |
+| `EMAIL_*` | Hostinger SMTP |
+| `CLOUDINARY_*` | Uploads |
+| `REDIS_ENABLED` | `true` (compose sets `REDIS_URL=redis://redis:6379`) |
+| `SOCKET_ENABLED` | `true` for WebSockets |
 
-| PM2 command | Purpose |
-| ----------- | ------- |
-| `pm2 status` | Check if API is running |
-| `pm2 logs city-airport-taxis-api` | View logs |
-| `pm2 restart city-airport-taxis-api` | Restart after deploy |
-| `git pull && pnpm install --frozen-lockfile && pnpm build && pm2 restart city-airport-taxis-api` | Update deploy |
+### 3. Start the API
 
-### 3. Nginx reverse proxy
+**First deploy (build on VPS):**
+
+```bash
+chmod +x deploy/docker-deploy.sh
+./deploy/docker-deploy.sh
+```
+
+**Deploy from GitHub Container Registry (CI/CD):**
+
+```bash
+export GHCR_USER=your-github-username
+export GHCR_TOKEN=ghp_xxxx   # PAT with read:packages
+export IMAGE=ghcr.io/YOUR_ORG/city-cab/city-cab-backend:latest
+./deploy/docker-deploy.sh
+```
+
+| Command | Purpose |
+| ------- | ------- |
+| `docker compose -f docker-compose.prod.yml ps` | Service status |
+| `docker compose -f docker-compose.prod.yml logs -f api` | API logs |
+| `./deploy/docker-deploy.sh` | Pull/build + restart |
+| `docker compose -f docker-compose.prod.yml down` | Stop stack |
+
+### 4. Nginx reverse proxy
 
 ```bash
 sudo cp deploy/nginx-api.conf.example /etc/nginx/sites-available/api.airport-transfers.be
+# Edit server_name to your domain
 sudo ln -s /etc/nginx/sites-available/api.airport-transfers.be /etc/nginx/sites-enabled/
 sudo nginx -t && sudo systemctl reload nginx
 ```
 
 Point DNS: `api.airport-transfers.be` → VPS IP (A record).
 
-### 4. SSL (HTTPS)
+### 5. SSL (HTTPS)
 
 ```bash
 sudo certbot --nginx -d api.airport-transfers.be
 ```
 
-### 5. Environment variables
+### 6. GitHub Actions auto-deploy
 
-All keys from `backend/.env.production` on the server as `.env.production`:
+Full setup guide: **[`.github/DEPLOY.md`](../.github/DEPLOY.md)** (repo root)
 
-| Variable | Notes |
-| -------- | ----- |
-| `PORT` | `5000` (Nginx proxies to this) |
-| `TRUST_PROXY_HOPS` | `1` |
-| `MONGODB_URI` | MongoDB Atlas |
-| `JWT_SECRET` / `JWT_REFRESH_SECRET` | Min 32 chars each |
-| `FRONTEND_URL` | `https://airport-transfers.be` |
-| `ADMIN_FRONTEND_URL` | `https://admin.airport-transfers.be` |
-| `EMAIL_*` | Hostinger SMTP |
-| `CLOUDINARY_*` | Uploads |
-| `REDIS_URL` / `REDIS_ENABLED` | Upstash (optional) |
-| `SOCKET_ENABLED` | `true` for WebSockets |
+Quick summary — in GitHub **Settings → Secrets and variables → Actions**:
 
-### 6. Verify
+| Setting | Value |
+| ------- | ----- |
+| Variable `SSH_DEPLOY_ENABLED` | `true` |
+| Secret `DEPLOY_HOST` | VPS IP |
+| Secret `DEPLOY_USER` | SSH user |
+| Secret `DEPLOY_SSH_KEY` | Private SSH key |
+| Secret `DEPLOY_PATH` | `/opt/city-cab/backend` |
+| Secret `GHCR_TOKEN` | PAT with `read:packages` |
+
+**VPS one-time clone from GitHub:**
+
+```bash
+git clone https://github.com/YOUR_USER/city-cab.git /opt/city-cab
+cd /opt/city-cab/backend
+cp .env.production.example .env.production && nano .env.production
+sudo bash deploy/docker-vps-setup.sh
+```
+
+Deploy runs automatically on push to `main` (when `backend/**` changes), or manually via **Actions → Backend Deploy**.
+
+Image: `ghcr.io/YOUR_USER/city-cab-backend:latest`
+
+### 7. Verify
 
 ```bash
 curl http://127.0.0.1:5000/health/live
-curl https://api.airport-transfers.be/health/ready
+curl -H "X-Health-Token: YOUR_TOKEN" https://api.airport-transfers.be/health/ready
 ```
 
-Seed admin (from your machine or VPS):
+Seed admin (from your machine, pointing at production MongoDB):
 
 ```bash
-SEED_ADMIN_PASSWORD=YourPassword pnpm seed:admin
+MONGODB_URI="your-atlas-uri" SEED_ADMIN_PASSWORD=YourPassword pnpm seed:admin
 ```
 
-### 7. Frontends (same VPS or separate)
-
-Run **website** and **dashboard** (Next.js) on the same VPS with PM2 + Nginx, or on Hostinger shared hosting as static export.
+### 8. Frontends (same VPS or separate)
 
 ```env
 NEXT_PUBLIC_BACKEND_URL=https://api.airport-transfers.be/api
 ```
 
-Nginx examples: `airport-transfers.be` → website (port 3000), `admin.airport-transfers.be` → dashboard (port 3001).
+Nginx: `airport-transfers.be` → website (port 3000), `admin.airport-transfers.be` → dashboard (port 3001).
+
+### Alternative: PM2 (without Docker)
+
+If you prefer running Node directly: `pnpm build && pnpm start:pm2` using `ecosystem.config.cjs`.
 
 ## API overview
 

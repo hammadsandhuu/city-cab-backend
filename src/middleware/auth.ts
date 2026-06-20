@@ -1,10 +1,11 @@
 import { Request, Response, NextFunction } from "express";
-import { AppError } from "../errors/AppError";
-import authService from "../services/auth.service";
-import userAuthService from "../services/userAuth.service";
-import { JwtUtil } from "../utils/jwt";
-import { rejectStaleToken, verifyAccessTokenAccount } from "../utils/auth-account";
-import type { AccountUserType } from "../types/account-auth";
+import { AppError } from "@/shared/errors/AppError";
+import authService from "@/modules/auth/services/auth.service";
+import userAuthService from "@/modules/auth/services/userAuth.service";
+import { JwtUtil } from "@/modules/auth/utils/jwt";
+import { rejectStaleToken, verifyAccessTokenAccount } from "@/modules/auth/utils/auth-account";
+import { bindUserContext } from "@/shared/observability/request-context";
+import type { AccountUserType } from "@/modules/auth/types/account-auth";
 
 const UNAUTHORIZED = "Not authorized to access this route";
 
@@ -40,6 +41,7 @@ const loadSession = async (req: Request, type: AccountUserType) => {
 
     rejectStaleToken(decoded, admin.passwordChangedAt);
     req.admin = admin;
+    bindUserContext(admin._id.toString(), "admin");
     return;
   }
 
@@ -55,6 +57,7 @@ const loadSession = async (req: Request, type: AccountUserType) => {
   }
 
   req.user = user;
+  bindUserContext(user._id.toString(), "user");
 };
 
 const guard =
@@ -99,6 +102,7 @@ export const protectAuthenticated = async (
         throw new AppError("User no longer exists", 401);
       }
       req.admin = admin;
+      bindUserContext(admin._id.toString(), "admin");
       return next();
     }
 
@@ -107,6 +111,7 @@ export const protectAuthenticated = async (
       throw new AppError("User no longer exists", 401);
     }
     req.user = user;
+    bindUserContext(user._id.toString(), "user");
     return next();
   } catch (error) {
     if (error instanceof AppError) {

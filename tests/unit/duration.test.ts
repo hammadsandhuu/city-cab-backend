@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseDurationToMs, getRefreshExpiryDate } from "../../src/utils/duration";
+import { parseDurationToMs, getRefreshExpiryDate } from "../../src/modules/auth/utils/duration";
 
 describe("duration utils", () => {
   it("parses minute durations", () => {

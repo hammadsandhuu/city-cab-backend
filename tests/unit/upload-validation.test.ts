@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { sanitizeUploadFolder, matchesFileSignature } from "../../src/utils/upload-validation";
+import { sanitizeUploadFolder, matchesFileSignature } from "../../src/modules/upload/utils/upload-validation";
 
 describe("upload validation", () => {
   it("sanitizes unsafe folder names", () => {

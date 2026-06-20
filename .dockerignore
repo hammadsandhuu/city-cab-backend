@@ -1,0 +1,14 @@
+node_modules
+dist
+coverage
+logs
+.git
+.github
+.env
+.env.*
+!.env.example
+tests
+load
+*.md
+.vscode
+.cursor

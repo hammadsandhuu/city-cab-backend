@@ -5,17 +5,25 @@ import compression from "compression";
 import morgan from "morgan";
 import cookieParser from "cookie-parser";
 import rateLimit from "express-rate-limit";
-import { env } from "./config/env";
-import { getRateLimitStore } from "./config/rate-limit-store";
-import routes from "./routes";
-import { errorHandler } from "./middleware/errorHandler";
-import logger from "./utils/logger";
-import { getHealthReport, getHealthStatusCode } from "./services/health.service";
+import { env } from "@/config/env";
+import { getRateLimitStore } from "@/infrastructure/redis/rate-limit-store";
+import routes from "@/routes";
+import { errorHandler } from "@/middleware/errorHandler";
+import { setupSentryErrorHandler } from "@/shared/observability/apm";
+import { requestLoggerMiddleware } from "@/shared/observability/request-logger.middleware";
+import logger from "@/shared/utils/logger";
+import {
+  getHealthReport,
+  getPublicHealthReport,
+  getHealthStatusCode,
+} from "@/modules/health";
+import { isHealthAuthorized, requireHealthAuth } from "@/middleware/health-auth";
 
 const app: Application = express();
 
 app.set("trust proxy", env.TRUST_PROXY_HOPS);
 
+app.use(requestLoggerMiddleware);
 app.use(helmet());
 
 const corsOptions: CorsOptions = {
@@ -46,7 +54,11 @@ const limiter = rateLimit({
   max: env.RATE_LIMIT_MAX_REQUESTS,
   standardHeaders: true,
   legacyHeaders: false,
-  message: { success: false, error: "Too many requests from this IP, please try again later." },
+  message: {
+    success: false,
+    error: "Too many requests from this IP, please try again later.",
+    errorCode: "RATE_LIMIT_EXCEEDED",
+  },
   ...(rateLimitStore ? { store: rateLimitStore } : {}),
 });
 
@@ -84,9 +96,11 @@ app.get("/health/live", (_req: Request, res: Response) => {
   });
 });
 
-app.get("/health/ready", async (_req: Request, res: Response) => {
+app.get("/health/ready", requireHealthAuth, async (req: Request, res: Response) => {
   try {
-    const report = await getHealthReport();
+    const report = isHealthAuthorized(req)
+      ? await getHealthReport()
+      : await getPublicHealthReport();
     res.status(getHealthStatusCode(report, true)).json(report);
   } catch (error) {
     logger.error("Readiness check failed", { error });
@@ -98,9 +112,11 @@ app.get("/health/ready", async (_req: Request, res: Response) => {
   }
 });
 
-app.get("/health", async (_req: Request, res: Response) => {
+app.get("/health", requireHealthAuth, async (req: Request, res: Response) => {
   try {
-    const report = await getHealthReport();
+    const report = isHealthAuthorized(req)
+      ? await getHealthReport(true)
+      : await getPublicHealthReport();
     res.status(getHealthStatusCode(report, true)).json(report);
   } catch (error) {
     logger.error("Health check failed", { error });
@@ -118,9 +134,22 @@ app.use((_req: Request, res: Response) => {
   res.status(404).json({
     success: false,
     message: "Route not found",
+    errorCode: "RESOURCE_NOT_FOUND",
   });
 });
 
-app.use(errorHandler);
+export const applyErrorHandlers = (application: Application): void => {
+  if (application.get("errorHandlersApplied")) {
+    return;
+  }
+
+  application.set("errorHandlersApplied", true);
+  setupSentryErrorHandler(application);
+  application.use(errorHandler);
+};
+
+if (process.env.NODE_ENV === "test" || process.env.VITEST) {
+  applyErrorHandlers(app);
+}
 
 export default app;

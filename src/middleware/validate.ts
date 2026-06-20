@@ -1,10 +1,14 @@
 import { Request, Response, NextFunction } from "express";
 import { ObjectSchema } from "joi";
-import { AppError } from "../errors/AppError";
+import { AppError } from "@/shared/errors/AppError";
 
-export const validateRequest = (schema: ObjectSchema) => {
-  return (req: Request, _res: Response, next: NextFunction) => {
-    const { error, value } = schema.validate(req.body, {
+const validate =
+  (schema: ObjectSchema, source: "body" | "params" | "query") =>
+  (req: Request, _res: Response, next: NextFunction) => {
+    const target =
+      source === "body" ? req.body : source === "params" ? req.params : req.query;
+
+    const { error, value } = schema.validate(target, {
       abortEarly: false,
       stripUnknown: true,
     });
@@ -16,7 +20,17 @@ export const validateRequest = (schema: ObjectSchema) => {
       return next(new AppError(errorMessage, 400));
     }
 
-    req.body = value;
+    if (source === "body") {
+      req.body = value;
+    } else if (source === "params") {
+      req.params = value;
+    } else {
+      Object.assign(req.query, value);
+    }
+
     next();
   };
-};
+
+export const validateRequest = (schema: ObjectSchema) => validate(schema, "body");
+export const validateParams = (schema: ObjectSchema) => validate(schema, "params");
+export const validateQuery = (schema: ObjectSchema) => validate(schema, "query");

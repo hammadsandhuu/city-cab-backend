@@ -1,11 +1,16 @@
 import http from "http";
 import mongoose from "mongoose";
-import app from "./app";
-import connectDB from "./config/database";
-import { RedisClient } from "./config/redis";
-import { env } from "./config/env";
-import { initSocketServer, shutdownSocketServer } from "./socket";
-import logger from "./utils/logger";
+import app, { applyErrorHandlers } from "./app";
+import connectDB from "@/infrastructure/database/connection";
+import { RedisClient } from "@/infrastructure/redis/client";
+import { env } from "@/config/env";
+import { initSocketServer, shutdownSocketServer } from "@/infrastructure/socket/server";
+import {
+  initObservability,
+  captureException,
+  flushObservability,
+} from "@/shared/observability/apm";
+import logger from "@/shared/utils/logger";
 
 const PORT = env.PORT || 5000;
 
@@ -13,6 +18,8 @@ let httpServer: http.Server | null = null;
 let isShuttingDown = false;
 
 const bootstrap = async (): Promise<void> => {
+  await initObservability();
+  applyErrorHandlers(app);
   await connectDB();
   await RedisClient.connect();
 
@@ -24,6 +31,7 @@ const bootstrap = async (): Promise<void> => {
       redisEnabled: env.REDIS_ENABLED,
       socketEnabled: env.SOCKET_ENABLED,
       socketPath: env.SOCKET_PATH,
+      sentryEnabled: env.SENTRY_ENABLED,
     });
   });
 };
@@ -58,6 +66,7 @@ const shutdown = async (signal: string): Promise<void> => {
       httpServer = null;
     }
 
+    await flushObservability();
     logger.info("Graceful shutdown complete");
     process.exit(0);
   } catch (error) {
@@ -68,16 +77,19 @@ const shutdown = async (signal: string): Promise<void> => {
 
 bootstrap().catch((error) => {
   logger.error("Failed to start server:", error);
+  captureException(error instanceof Error ? error : new Error(String(error)));
   process.exit(1);
 });
 
 process.on("unhandledRejection", (err: Error) => {
   logger.error(`Unhandled Rejection: ${err.message}`, { stack: err.stack });
+  captureException(err);
   process.exit(1);
 });
 
 process.on("uncaughtException", (err: Error) => {
   logger.error(`Uncaught Exception: ${err.message}`, { stack: err.stack });
+  captureException(err);
   process.exit(1);
 });
 

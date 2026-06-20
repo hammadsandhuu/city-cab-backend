@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import type { Request, Response } from "express";
-import { AppError } from "../../src/errors/AppError";
+import { AppError } from "../../src/shared/errors/AppError";
 import { csrfProtection } from "../../src/middleware/csrf";
 
 const createMockRes = (): Response => ({}) as Response;

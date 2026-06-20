@@ -1,31 +1,33 @@
 import { describe, expect, it, beforeEach } from "vitest";
-import { onlineUsersRegistry } from "../../src/socket/registry/online-users.registry";
+import { InMemoryOnlineUsersRegistry } from "@/infrastructure/socket/registry/online-users.registry";
 
-describe("onlineUsersRegistry", () => {
+describe("InMemoryOnlineUsersRegistry", () => {
+  const registry = new InMemoryOnlineUsersRegistry();
+
   beforeEach(() => {
-    onlineUsersRegistry.clear();
+    registry.clear();
   });
 
   it("tracks user connections", () => {
-    onlineUsersRegistry.register("user-1", "socket-a");
-    onlineUsersRegistry.register("user-1", "socket-b");
-    onlineUsersRegistry.register("user-2", "socket-c");
+    registry.register("user-1", "socket-a");
+    registry.register("user-1", "socket-b");
+    registry.register("user-2", "socket-c");
 
-    expect(onlineUsersRegistry.getOnlineUserCount()).toBe(2);
-    expect(onlineUsersRegistry.getConnectionCount()).toBe(3);
-    expect(onlineUsersRegistry.isUserOnline("user-1")).toBe(true);
+    expect(registry.getOnlineUserCount()).toBe(2);
+    expect(registry.getConnectionCount()).toBe(3);
+    expect(registry.isUserOnline("user-1")).toBe(true);
   });
 
   it("removes socket on unregister and clears user when last socket leaves", () => {
-    onlineUsersRegistry.register("user-1", "socket-a");
-    onlineUsersRegistry.register("user-1", "socket-b");
+    registry.register("user-1", "socket-a");
+    registry.register("user-1", "socket-b");
 
-    onlineUsersRegistry.unregister("socket-a");
-    expect(onlineUsersRegistry.isUserOnline("user-1")).toBe(true);
-    expect(onlineUsersRegistry.getConnectionCount()).toBe(1);
+    registry.unregister("socket-a");
+    expect(registry.isUserOnline("user-1")).toBe(true);
+    expect(registry.getConnectionCount()).toBe(1);
 
-    onlineUsersRegistry.unregister("socket-b");
-    expect(onlineUsersRegistry.isUserOnline("user-1")).toBe(false);
-    expect(onlineUsersRegistry.getOnlineUserCount()).toBe(0);
+    registry.unregister("socket-b");
+    expect(registry.isUserOnline("user-1")).toBe(false);
+    expect(registry.getOnlineUserCount()).toBe(0);
   });
 });

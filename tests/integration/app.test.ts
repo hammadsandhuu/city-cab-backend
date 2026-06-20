@@ -21,11 +21,16 @@ describe("App routes", () => {
   it("GET /health returns dependency report", async () => {
     const response = await request(app).get("/health");
 
-    expect(response.body.database).toBeDefined();
-    expect(response.body.redis).toBeDefined();
-    expect(response.body.socket).toBeDefined();
-    expect(response.body.redis.status).toBe("disabled");
-    expect(response.body.socket.status).toBe("disabled");
+    expect(response.body.services).toBeDefined();
+    expect(response.body.services.mongodb).toBeDefined();
+    expect(response.body.errorCode).toBeUndefined();
+  });
+
+  it("returns errorCode on 404", async () => {
+    const response = await request(app).get("/api/does-not-exist");
+
+    expect(response.status).toBe(404);
+    expect(response.body.errorCode).toBe("RESOURCE_NOT_FOUND");
   });
 
   it("POST /api/upload/upload requires authentication", async () => {
@@ -33,12 +38,6 @@ describe("App routes", () => {
 
     expect(response.status).toBe(401);
     expect(response.body.success).toBe(false);
-  });
-
-  it("returns 404 for unknown routes", async () => {
-    const response = await request(app).get("/api/does-not-exist");
-
-    expect(response.status).toBe(404);
-    expect(response.body.success).toBe(false);
+    expect(response.body.errorCode).toBeDefined();
   });
 });

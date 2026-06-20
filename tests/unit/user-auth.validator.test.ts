@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { userUpdateProfileSchema } from "../../src/validators/user-auth.validator";
+import { userUpdateProfileSchema } from "../../src/modules/auth/validators/user-auth.validator";
 
 describe("userUpdateProfileSchema", () => {
   it("accepts valid profile updates", () => {
