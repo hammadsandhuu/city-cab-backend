@@ -2,8 +2,8 @@
 # One-time: clone this repo on the VPS and prepare Docker deploy
 set -euo pipefail
 
-REPO_URL="${REPO_URL:-https://github.com/hammadsandhuu/city-cab.git}"
-APP_ROOT="${APP_ROOT:-/opt/city-cab}"
+REPO_URL="${REPO_URL:-https://github.com/hammadsandhuu/city-airport-taxis.git}"
+APP_ROOT="${APP_ROOT:-/opt/city-airport-taxis}"
 BACKEND_DIR="${APP_ROOT}/backend"
 
 echo "==> Cloning ${REPO_URL} into ${APP_ROOT}"
@@ -17,8 +17,7 @@ fi
 cd "${BACKEND_DIR}"
 
 if [[ ! -f ".env.production" ]]; then
-  cp .env.production.example .env.production
-  echo "Created .env.production — edit it before deploying:"
+  echo "Create .env.production on the VPS (copy from your local machine — never commit):"
   echo "  nano ${BACKEND_DIR}/.env.production"
 fi
 

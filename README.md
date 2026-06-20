@@ -175,10 +175,10 @@ Deploy on a **Hostinger VPS** (Ubuntu) with **Docker Compose** + **Nginx** + **S
 
 ```bash
 # Clone repo (or copy backend folder only)
-mkdir -p /opt/city-cab/backend
-cd /opt/city-cab/backend
-git clone https://github.com/YOUR_ORG/city-cab.git /tmp/city-cab
-cp -r /tmp/city-cab/backend/* .
+mkdir -p /opt/city-airport-taxis/backend
+cd /opt/city-airport-taxis/backend
+git clone https://github.com/YOUR_ORG/city-airport-taxis.git /tmp/city-airport-taxis
+cp -r /tmp/city-airport-taxis/backend/* .
 
 # One-time Docker + Nginx setup
 sudo bash deploy/docker-vps-setup.sh
@@ -187,8 +187,7 @@ sudo bash deploy/docker-vps-setup.sh
 ### 2. Configure production env
 
 ```bash
-cp .env.production.example .env.production
-nano .env.production   # fill JWT, MongoDB, email, Cloudinary, HEALTH_CHECK_TOKEN, URLs
+nano .env.production   # use your production env (copy from local machine — never commit)
 ```
 
 | Variable | Notes |
@@ -219,7 +218,7 @@ chmod +x deploy/docker-deploy.sh
 ```bash
 export GHCR_USER=your-github-username
 export GHCR_TOKEN=ghp_xxxx   # PAT with read:packages
-export IMAGE=ghcr.io/YOUR_ORG/city-cab/city-cab-backend:latest
+export IMAGE=ghcr.io/YOUR_ORG/city-airport-taxis:latest
 ./deploy/docker-deploy.sh
 ```
 
@@ -259,21 +258,21 @@ Quick summary — in GitHub **Settings → Secrets and variables → Actions**:
 | Secret `DEPLOY_HOST` | VPS IP |
 | Secret `DEPLOY_USER` | SSH user |
 | Secret `DEPLOY_SSH_KEY` | Private SSH key |
-| Secret `DEPLOY_PATH` | `/opt/city-cab/backend` |
+| Secret `DEPLOY_PATH` | `/opt/city-airport-taxis/backend` |
 | Secret `GHCR_TOKEN` | PAT with `read:packages` |
 
 **VPS one-time clone from GitHub:**
 
 ```bash
-git clone https://github.com/YOUR_USER/city-cab.git /opt/city-cab
-cd /opt/city-cab/backend
-cp .env.production.example .env.production && nano .env.production
+git clone https://github.com/YOUR_USER/city-airport-taxis.git /opt/city-airport-taxis
+cd /opt/city-airport-taxis/backend
+nano .env.production          # copy your local .env.production to the VPS (never commit)
 sudo bash deploy/docker-vps-setup.sh
 ```
 
 Deploy runs automatically on push to `main` (when `backend/**` changes), or manually via **Actions → Backend Deploy**.
 
-Image: `ghcr.io/YOUR_USER/city-cab-backend:latest`
+Image: `ghcr.io/YOUR_USER/city-airport-taxis:latest`
 
 ### 7. Verify
 

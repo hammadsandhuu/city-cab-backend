@@ -6,7 +6,6 @@ logs
 .github
 .env
 .env.*
-!.env.example
 tests
 load
 *.md

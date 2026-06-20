@@ -6,7 +6,7 @@ import morgan from "morgan";
 import cookieParser from "cookie-parser";
 import rateLimit from "express-rate-limit";
 import { env } from "@/config/env";
-import { getRateLimitStore } from "@/infrastructure/redis/rate-limit-store";
+import { createRateLimitStore } from "@/infrastructure/redis/rate-limit-store";
 import routes from "@/routes";
 import { errorHandler } from "@/middleware/errorHandler";
 import { setupSentryErrorHandler } from "@/shared/observability/apm";
@@ -47,7 +47,7 @@ const corsOptions: CorsOptions = {
 
 app.use(cors(corsOptions));
 
-const rateLimitStore = getRateLimitStore();
+const rateLimitStore = createRateLimitStore("global");
 
 const limiter = rateLimit({
   windowMs: env.RATE_LIMIT_WINDOW_MS,

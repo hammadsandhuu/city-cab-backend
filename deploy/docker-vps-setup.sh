@@ -2,7 +2,7 @@
 # One-time VPS setup for Docker deployment (Ubuntu 22.04 / 24.04)
 set -euo pipefail
 
-APP_DIR="${APP_DIR:-/opt/city-cab/backend}"
+APP_DIR="${APP_DIR:-/opt/city-airport-taxis/backend}"
 
 echo "==> Updating system packages"
 apt update && apt upgrade -y

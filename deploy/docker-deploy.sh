@@ -7,7 +7,7 @@ APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "${APP_DIR}"
 
 if [[ ! -f ".env.production" ]]; then
-  echo "Missing .env.production — copy from .env.production.example and fill in values."
+  echo "Missing .env.production — copy your local .env.production to this server (never commit to git)."
   exit 1
 fi
 
@@ -22,7 +22,7 @@ if [[ -n "${IMAGE:-}" ]]; then
   docker compose -f "${COMPOSE_FILE}" pull api
 else
   echo "==> Building image locally"
-  export IMAGE="city-cab-backend:latest"
+  export IMAGE="city-airport-taxis:latest"
 fi
 
 echo "==> Starting services"

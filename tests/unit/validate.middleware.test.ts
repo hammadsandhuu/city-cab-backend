@@ -20,11 +20,11 @@ describe("validate middleware", () => {
   it("validateRequest strips unknown body fields", async () => {
     const schema = Joi.object({ name: Joi.string().required() });
     const { error, req } = await runMiddleware(validateRequest(schema), {
-      body: { name: "City Cab", extra: true },
+      body: { name: "City Airport Taxis", extra: true },
     });
 
     expect(error).toBeUndefined();
-    expect(req.body).toEqual({ name: "City Cab" });
+    expect(req.body).toEqual({ name: "City Airport Taxis" });
   });
 
   it("validateParams rejects invalid ids", async () => {

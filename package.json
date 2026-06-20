@@ -1,5 +1,5 @@
 {
-  "name": "city-airport-taxis-backend",
+  "name": "city-airport-taxis",
   "version": "1.0.0",
   "description": "City Airport Taxis backend — auth, user accounts, and file upload",
   "main": "dist/server.js",

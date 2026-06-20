@@ -1,6 +1,5 @@
 import http from "http";
 import mongoose from "mongoose";
-import app, { applyErrorHandlers } from "./app";
 import connectDB from "@/infrastructure/database/connection";
 import { RedisClient } from "@/infrastructure/redis/client";
 import { env } from "@/config/env";
@@ -19,9 +18,11 @@ let isShuttingDown = false;
 
 const bootstrap = async (): Promise<void> => {
   await initObservability();
-  applyErrorHandlers(app);
   await connectDB();
   await RedisClient.connect();
+
+  const { default: app, applyErrorHandlers } = await import("./app");
+  applyErrorHandlers(app);
 
   httpServer = http.createServer(app);
   await initSocketServer(httpServer);
@@ -29,6 +30,7 @@ const bootstrap = async (): Promise<void> => {
   httpServer.listen(PORT, () => {
     logger.info(`Server running on port ${PORT} in ${env.NODE_ENV} mode`, {
       redisEnabled: env.REDIS_ENABLED,
+      redisConnected: RedisClient.isConnected(),
       socketEnabled: env.SOCKET_ENABLED,
       socketPath: env.SOCKET_PATH,
       sentryEnabled: env.SENTRY_ENABLED,
@@ -100,5 +102,3 @@ process.on("SIGTERM", () => {
 process.on("SIGINT", () => {
   void shutdown("SIGINT");
 });
-
-export default app;

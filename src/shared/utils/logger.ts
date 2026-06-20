@@ -51,7 +51,7 @@ if (isProduction) {
 
 const logger = winston.createLogger({
   level: env.LOG_LEVEL || "info",
-  defaultMeta: { service: "city-airport-taxis-backend-api" },
+  defaultMeta: { service: "city-airport-taxis-api" },
   transports,
 });
 

@@ -1,6 +1,6 @@
 services:
   api:
-    image: ${IMAGE:-city-cab-backend:latest}
+    image: ${IMAGE:-city-airport-taxis:latest}
     pull_policy: ${PULL_POLICY:-missing}
     build:
       context: .

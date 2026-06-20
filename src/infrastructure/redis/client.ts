@@ -14,9 +14,14 @@ class RedisClientManager {
   private client: RedisClientType | null = null;
   private connectPromise: Promise<RedisClientType | null> | null = null;
   private shuttingDown = false;
+  private devUnavailable = false;
 
   isEnabled(): boolean {
     return env.REDIS_ENABLED;
+  }
+
+  isDevUnavailable(): boolean {
+    return this.devUnavailable;
   }
 
   getClient(): RedisClientType | null {
@@ -30,6 +35,10 @@ class RedisClientManager {
   async connect(): Promise<RedisClientType | null> {
     if (!env.REDIS_ENABLED) {
       logger.info("Redis is disabled — skipping connection");
+      return null;
+    }
+
+    if (this.devUnavailable) {
       return null;
     }
 
@@ -61,6 +70,10 @@ class RedisClientManager {
         connectTimeout: env.REDIS_CONNECT_TIMEOUT_MS,
         reconnectStrategy: (retries) => {
           if (this.shuttingDown) {
+            return false;
+          }
+
+          if (env.NODE_ENV === "development") {
             return false;
           }
 
@@ -96,9 +109,20 @@ class RedisClientManager {
       logger.warn("Redis client connection closed");
     });
 
-    await client.connect();
-    this.client = client;
-    return client;
+    try {
+      await client.connect();
+      this.client = client;
+      return client;
+    } catch (error) {
+      if (env.NODE_ENV === "development") {
+        this.devUnavailable = true;
+        logger.warn("Redis connection failed in development — continuing without Redis", {
+          error: error instanceof Error ? error.message : String(error),
+        });
+        return null;
+      }
+      throw error;
+    }
   }
 
   async ping(): Promise<RedisHealthStatus> {

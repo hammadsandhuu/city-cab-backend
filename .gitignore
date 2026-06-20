@@ -1,51 +1,154 @@
+# =============================================================================
+# City Airport Taxis Backend — .gitignore
+# Commit: pnpm-lock.yaml
+# Never commit: .env, .env.production, secrets, keys, logs, build output
+# =============================================================================
+
+# -----------------------------------------------------------------------------
 # Dependencies
+# -----------------------------------------------------------------------------
 node_modules/
+.pnp
+.pnp.js
 .pnpm-store/
-.pnpm-store
 .pnpm/
 .pnpm-debug.log*
 
-# Legacy lockfiles (commit pnpm-lock.yaml)
+# Legacy lockfiles (use pnpm-lock.yaml)
 package-lock.json
 yarn.lock
+bun.lock
+bun.lockb
 
-# Build output
+# -----------------------------------------------------------------------------
+# Build & runtime output
+# -----------------------------------------------------------------------------
 dist/
 build/
+out/
+*.tsbuildinfo
 
-# Environment — never commit secrets (.env / .env.production)
+# -----------------------------------------------------------------------------
+# Environment & secrets (never commit)
+# -----------------------------------------------------------------------------
 .env
-.env.production
+.env.*
+
+# Local overrides / staging copies with real credentials
 .env.local
 .env.development
-.env.*.local
+.env.development.local
+.env.test.local
+.env.production
+.env.production.local
+.env.staging
+.env.staging.local
 
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
+# Keys & certificates
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*.cer
+secrets/
+credentials/
+credentials.json
+service-account*.json
 
-# OS
-.DS_Store
-Thumbs.db
-
-# Logs
+# -----------------------------------------------------------------------------
+# Logs & process managers
+# -----------------------------------------------------------------------------
 logs/
 *.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
 
-# Testing
+# PM2
+.pm2/
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# -----------------------------------------------------------------------------
+# Testing & coverage
+# -----------------------------------------------------------------------------
 coverage/
 .nyc_output/
+.vitest/
+test-results/
+playwright-report/
+blob-report/
 
-# Temporary files
+# MongoDB Memory Server binary cache
+.mongodb-binaries/
+.mongo-binaries/
+
+# -----------------------------------------------------------------------------
+# Docker (local-only; keep Dockerfile & compose in repo)
+# -----------------------------------------------------------------------------
+docker-compose.override.yml
+.docker/
+
+# -----------------------------------------------------------------------------
+# Linting & tooling cache
+# -----------------------------------------------------------------------------
+.eslintcache
+.prettiercache
+.stylelintcache
+.cache/
+.parcel-cache/
+.turbo/
+*.tgz
+
+# -----------------------------------------------------------------------------
+# IDE & editors
+# -----------------------------------------------------------------------------
+.vscode/
+!.vscode/extensions.json
+!.vscode/settings.json.example
+.idea/
+*.sublime-project
+*.sublime-workspace
+.cursor/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+
+# -----------------------------------------------------------------------------
+# OS generated
+# -----------------------------------------------------------------------------
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# -----------------------------------------------------------------------------
+# Temporary & local uploads
+# -----------------------------------------------------------------------------
 tmp/
 temp/
 *.tmp
+*.temp
+uploads/
+public/uploads/
 
-# TypeScript
-*.tsbuildinfo
+# -----------------------------------------------------------------------------
+# Misc
+# -----------------------------------------------------------------------------
+*.orig
+*.bak
+*.backup
+.history/
+.sentryclirc
